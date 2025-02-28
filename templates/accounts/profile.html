@@ -1,0 +1,166 @@
+{% extends 'base.html' %}
+
+{% block title %}Profil - {{ user.username }}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <!-- Profil utilisateur -->
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-user me-2"></i>Profil
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-auto">
+                            {% if user_profile.avatar %}
+                                <img src="{{ user_profile.avatar }}" 
+                                     alt="Avatar" 
+                                     class="rounded-circle"
+                                     style="width: 100px; height: 100px;">
+                            {% else %}
+                                <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center text-white"
+                                     style="width: 100px; height: 100px; font-size: 2.5rem;">
+                                    {{ user.username|make_list|first|upper }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        <div class="col">
+                            <h5 class="card-title">{{ user.username }}</h5>
+                            <p class="card-text">
+                                <small class="text-muted">
+                                    Membre depuis {{ user_profile.created_at|date:"d/m/Y" }}
+                                </small>
+                            </p>
+                            {% if user_profile.bio %}
+                                <p class="card-text">{{ user_profile.bio }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Profil Steam -->
+            <div class="card mb-4">
+                <div class="card-header bg-dark text-white">
+                    <h4 class="mb-0">
+                        <i class="fab fa-steam me-2"></i>Compte Steam
+                    </h4>
+                </div>
+                <div class="card-body">
+                    {% if steam_profile %}
+                        <div class="row align-items-center">
+                            <div class="col-auto">
+                                <img src="{{ steam_profile.steam_avatar }}" 
+                                     alt="Avatar Steam" 
+                                     class="rounded-circle"
+                                     style="width: 100px; height: 100px;">
+                            </div>
+                            <div class="col">
+                                <h5 class="card-title">{{ steam_profile.steam_username }}</h5>
+                                <p class="card-text">
+                                    <small class="text-muted">
+                                        Steam ID: {{ steam_profile.steam_id }}
+                                    </small>
+                                </p>
+                                <p class="card-text">
+                                    <small class="text-muted">
+                                        Dernière synchronisation: {{ steam_profile.last_sync|date:"d/m/Y H:i" }}
+                                    </small>
+                                </p>
+                            </div>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-4">
+                            <p class="mb-3">Vous n'avez pas encore lié votre compte Steam.</p>
+                            <a href="{% url 'accounts:steam_login' %}" class="btn btn-dark">
+                                <i class="fab fa-steam me-2"></i>Lier mon compte Steam
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Statistiques -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Statistiques</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="text-center">
+                                <h6 class="text-muted">Jeux synchronisés</h6>
+                                <h3>{{ user.steam_games.count }}</h3>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="text-center">
+                                <h6 class="text-muted">Parties jouées</h6>
+                                <h3>{{ user.gamesession_set.count }}</h3>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="text-center">
+                                <h6 class="text-muted">Meilleur score</h6>
+                                <h3>{{ best_session.score|default:"0" }}</h3>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dernières parties -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Dernières parties</h5>
+                </div>
+                <div class="card-body">
+                    {% with recent_games=user.gamesession_set.all|slice:":5" %}
+                        {% if recent_games %}
+                            <div class="list-group">
+                                {% for session in recent_games %}
+                                    <div class="list-group-item">
+                                        <div class="d-flex w-100 justify-content-between">
+                                            <h6 class="mb-1">{{ session.game.name }}</h6>
+                                            <small class="text-muted">{{ session.start_time|date:"d/m/Y H:i" }}</small>
+                                        </div>
+                                        <p class="mb-1">
+                                            Score: {{ session.score }} - 
+                                            Tentatives: {{ session.attempts }}
+                                        </p>
+                                        <small class="text-{% if session.is_completed %}success{% else %}danger{% endif %}">
+                                            {% if session.is_completed %}
+                                                Terminé
+                                            {% else %}
+                                                Abandonné
+                                            {% endif %}
+                                        </small>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <p class="text-center mb-0">Aucune partie jouée pour le moment.</p>
+                        {% endif %}
+                    {% endwith %}
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="text-center mt-4">
+                <a href="{% url 'game:start_game' %}" class="btn btn-primary">
+                    <i class="fas fa-play me-2"></i>Nouvelle partie
+                </a>
+                {% if steam_profile %}
+                    <a href="{% url 'game:sync_games' %}" class="btn btn-outline-primary ms-2">
+                        <i class="fas fa-sync me-2"></i>Synchroniser les jeux
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

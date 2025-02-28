@@ -1,0 +1,86 @@
+{% extends 'base.html' %}
+
+{% block title %}Accueil - Pixel Guess{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="text-center py-5">
+        <h1 class="display-4 mb-4">Bienvenue sur Pixel Guess</h1>
+        <p class="lead mb-4">Le jeu de devinettes de jeux vidéo basé sur votre bibliothèque Steam !</p>
+        
+        {% if user.is_authenticated %}
+            <div class="mb-4">
+                <a href="{% url 'game:start_game' %}" class="btn btn-primary btn-lg">
+                    <i class="fas fa-play me-2"></i>Commencer à jouer
+                </a>
+            </div>
+            <div class="row justify-content-center mb-5">
+                <div class="col-md-4">
+                    <div class="card mb-3">
+                        <div class="card-body">
+                            <h5 class="card-title">
+                                <i class="fas fa-trophy text-warning"></i>
+                                Meilleur score
+                            </h5>
+                            <p class="display-6">{{ best_session.score|default:"0" }}</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card mb-3">
+                        <div class="card-body">
+                            <h5 class="card-title">
+                                <i class="fas fa-gamepad text-primary"></i>
+                                Jeux synchronisés
+                            </h5>
+                            <p class="display-6">{{ user.steam_games.count }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% else %}
+            <div class="mb-5">
+                <a href="{% url 'accounts:steam_login' %}" class="btn btn-dark btn-lg">
+                    <i class="fab fa-steam me-2"></i>Se connecter avec Steam
+                </a>
+            </div>
+        {% endif %}
+    </div>
+
+    <div class="row g-4 mb-5">
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <i class="fas fa-sync text-primary me-2"></i>
+                        Synchronisation Steam
+                    </h5>
+                    <p class="card-text">Connectez-vous avec votre compte Steam pour synchroniser votre bibliothèque de jeux.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <i class="fas fa-puzzle-piece text-success me-2"></i>
+                        Devinez les jeux
+                    </h5>
+                    <p class="card-text">Testez vos connaissances en devinant les jeux à partir d'images de votre bibliothèque.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <i class="fas fa-chart-line text-danger me-2"></i>
+                        Progressez
+                    </h5>
+                    <p class="card-text">Améliorez votre score et comparez vos performances avec d'autres joueurs.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

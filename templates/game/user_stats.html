@@ -1,0 +1,186 @@
+{% extends 'base.html' %}
+
+{% block title %}Mes statistiques - Pixel Guess{% endblock %}
+
+{% block extra_css %}
+<style>
+    .stats-container {
+        max-width: 1000px;
+        margin: 0 auto;
+    }
+
+    .stats-card {
+        background-color: #f8f9fa;
+        border-radius: 8px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+
+    .stat-box {
+        background-color: white;
+        padding: 1rem;
+        border-radius: 8px;
+        text-align: center;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .stat-value {
+        font-size: 2rem;
+        font-weight: bold;
+        color: #007bff;
+    }
+
+    .stat-label {
+        color: #6c757d;
+        margin-top: 0.5rem;
+    }
+
+    .chart-container {
+        height: 300px;
+        margin-bottom: 2rem;
+    }
+
+    .difficult-games-list {
+        list-style: none;
+        padding: 0;
+    }
+
+    .difficult-game-item {
+        display: flex;
+        align-items: center;
+        padding: 0.75rem;
+        border-bottom: 1px solid #dee2e6;
+    }
+
+    .difficult-game-item:last-child {
+        border-bottom: none;
+    }
+
+    .game-attempts {
+        margin-left: auto;
+        font-weight: bold;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="stats-container">
+        <h2 class="text-center mb-4">Mes statistiques</h2>
+
+        <div class="stats-grid">
+            <div class="stat-box">
+                <div class="stat-value">{{ total_games }}</div>
+                <div class="stat-label">Parties jouées</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-value">{{ completed_games }}</div>
+                <div class="stat-label">Parties réussies</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-value">{{ success_rate }}%</div>
+                <div class="stat-label">Taux de réussite</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-value">{{ avg_time|default:"--" }}</div>
+                <div class="stat-label">Temps moyen</div>
+            </div>
+        </div>
+
+        <div class="stats-card">
+            <h3 class="mb-3">Progression des scores</h3>
+            <div class="chart-container">
+                <canvas id="scoreChart"></canvas>
+            </div>
+        </div>
+
+        <div class="stats-card">
+            <h3 class="mb-3">Jeux les plus difficiles</h3>
+            <ul class="difficult-games-list">
+                {% for game in difficult_games %}
+                <li class="difficult-game-item">
+                    <a href="https://store.steampowered.com/app/{{ game.game__app_id }}" target="_blank">
+                        {{ game.game__name }}
+                    </a>
+                    <span class="game-attempts">{{ game.avg_attempts|floatformat:1 }} tentatives en moyenne</span>
+                </li>
+                {% empty %}
+                <li class="text-center text-muted">Pas encore assez de données</li>
+                {% endfor %}
+            </ul>
+        </div>
+
+        <div class="stats-card">
+            <h3 class="mb-3">Meilleurs scores</h3>
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Jeu</th>
+                            <th>Score</th>
+                            <th>Tentatives</th>
+                            <th>Date</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for session in best_sessions %}
+                        <tr>
+                            <td>{{ session.game.name }}</td>
+                            <td>{{ session.score }}</td>
+                            <td>{{ session.attempts }}</td>
+                            <td>{{ session.start_time|date:"d/m/Y H:i" }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="4" class="text-center">Aucune partie terminée</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const recentSessions = {{ recent_sessions|safe }};
+    
+    if (recentSessions.length > 0) {
+        const ctx = document.getElementById('scoreChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: recentSessions.map(session => new Date(session.start_time).toLocaleDateString()),
+                datasets: [{
+                    label: 'Score',
+                    data: recentSessions.map(session => session.score),
+                    borderColor: '#007bff',
+                    tension: 0.1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100
+                    }
+                }
+            }
+        });
+    }
+});
+</script>
+{% endblock %} 

@@ -1,0 +1,471 @@
+{% extends 'base.html' %}
+
+{% block title %}Jouer - Pixel Guess{% endblock %}
+
+{% block extra_css %}
+<style>
+    .game-image-container {
+        position: relative;
+        width: 100%;
+        max-width: 800px;
+        margin: 0 auto;
+        overflow: hidden;
+        aspect-ratio: 16/9;
+    }
+
+    .game-image {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transform-origin: center;
+        transition: all 0.5s ease;
+        image-rendering: pixelated;
+        filter: brightness(0.9);
+    }
+
+    .zoom-level {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        background: rgba(0, 0, 0, 0.7);
+        color: white;
+        padding: 5px 10px;
+        border-radius: 5px;
+    }
+
+    .timer-bar {
+        width: 100%;
+        height: 4px;
+        background: #ddd;
+        margin-bottom: 20px;
+    }
+
+    .timer-progress {
+        height: 100%;
+        background: #007bff;
+        width: 100%;
+        transition: width 1s linear;
+    }
+
+    .answer-feedback {
+        font-size: 1.2em;
+        margin: 10px 0;
+        min-height: 30px;
+    }
+
+    .hint {
+        font-size: 0.9em;
+        color: #666;
+        margin-top: 5px;
+    }
+
+    .rounds-info {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        background: rgba(0, 0, 0, 0.7);
+        color: white;
+        padding: 5px 10px;
+        border-radius: 5px;
+    }
+
+    .suggestions-container {
+        position: relative;
+    }
+
+    .suggestions-list {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: white;
+        border: 1px solid #ddd;
+        border-radius: 0 0 4px 4px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        z-index: 1000;
+        max-height: 200px;
+        overflow-y: auto;
+        display: none;
+    }
+
+    .suggestion-item {
+        padding: 8px 12px;
+        cursor: pointer;
+        transition: background-color 0.2s;
+    }
+
+    .suggestion-item:hover,
+    .suggestion-item.selected {
+        background-color: #f8f9fa;
+    }
+
+    .suggestion-item.active {
+        background-color: #e9ecef;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="text-center mb-4">
+        <h2>Devinez le jeu !</h2>
+        <div class="timer-bar">
+            <div class="timer-progress" id="timerProgress"></div>
+        </div>
+    </div>
+
+    <div class="game-image-container mb-4">
+        <img src="{{ image_url }}" alt="Jeu à deviner" class="game-image" id="gameImage" data-game-name="{{ game_name }}">
+        <div class="zoom-level" id="zoomLevel">Zoom: 300%</div>
+        <div class="rounds-info" id="roundsInfo">Round 1/10</div>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <form id="answerForm" class="mb-3">
+                {% csrf_token %}
+                <div class="suggestions-container">
+                    <div class="input-group">
+                        <input type="text" 
+                               id="answerInput" 
+                               class="form-control" 
+                               placeholder="Nom du jeu..." 
+                               autocomplete="off">
+                        <button type="submit" class="btn btn-primary">Valider</button>
+                    </div>
+                    <div class="suggestions-list" id="suggestionsList"></div>
+                </div>
+                <div class="hint">Seuls les lettres et les chiffres sont pris en compte</div>
+            </form>
+            <div class="answer-feedback text-center" id="feedback"></div>
+            <div class="text-center mt-3">
+                <span class="badge bg-primary">Tentatives : <span id="attempts">0</span></span>
+                <span class="badge bg-success ms-2">Score : <span id="score">100</span></span>
+                <span class="badge bg-info ms-2">Score total : <span id="totalScore">0</span></span>
+            </div>
+        </div>
+    </div>
+
+    <div class="text-center mt-4">
+        <button id="nextRoundBtn" class="btn btn-primary" style="display: none;">
+            <i class="fas fa-forward me-2"></i>Round suivant
+        </button>
+        <a href="{% url 'game:leaderboard' %}" class="btn btn-outline-secondary ms-2">Voir le classement</a>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const GAME_DURATION = 60;
+const MAX_ZOOM = 8; // Zoom initial augmenté à 800%
+const MAX_BLUR = 30; // Flou maximum en pixels
+const TOTAL_ROUNDS = 10;
+let timeLeft = GAME_DURATION;
+let gameEnded = false;
+let currentRound = 1;
+let totalScore = 0;
+let currentGameName = "{{ session.game.name }}";
+let currentSessionId = "{{ session.id }}";
+let playedGames = [currentGameName]; // Ajouter la liste des jeux joués
+
+let currentSuggestionIndex = -1;
+let suggestions = [];
+
+let animationFrameId = null;
+let startTime = null;
+
+function updateImage(progress) {
+    const scale = MAX_ZOOM - ((MAX_ZOOM - 1) * (1 - progress));
+    const brightness = 0.9 + (0.1 * progress);
+    
+    const gameImage = document.getElementById('gameImage');
+    gameImage.style.transform = `scale(${scale})`;
+    gameImage.style.filter = `brightness(${brightness})`;
+    document.getElementById('zoomLevel').textContent = `Zoom: ${Math.round(scale * 100)}%`;
+}
+
+function startTimer() {
+    startTime = performance.now();
+    
+    function animate(currentTime) {
+        if (gameEnded) {
+            cancelAnimationFrame(animationFrameId);
+            return;
+        }
+
+        const elapsedTime = (currentTime - startTime) / 1000;
+        timeLeft = Math.max(0, GAME_DURATION - elapsedTime);
+        const progress = timeLeft / GAME_DURATION;
+
+        document.getElementById('timerProgress').style.width = `${progress * 100}%`;
+        updateImage(progress);
+
+        if (timeLeft <= 0) {
+            gameEnded = true;
+            document.getElementById('answerInput').disabled = true;
+            document.getElementById('feedback').innerHTML = `
+                <div class="alert alert-danger">
+                    Temps écoulé ! La réponse était : ${currentGameName}
+                </div>`;
+            if (currentRound < TOTAL_ROUNDS) {
+                document.getElementById('nextRoundBtn').style.display = 'inline-block';
+            }
+            return;
+        }
+
+        animationFrameId = requestAnimationFrame(animate);
+    }
+
+    animationFrameId = requestAnimationFrame(animate);
+}
+
+async function startNewRound() {
+    try {
+        const response = await fetch('{% url "game:start_game" %}', {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            },
+            body: JSON.stringify({
+                played_games: playedGames
+            })
+        });
+        const data = await response.json();
+        
+        if (data.error) {
+            document.getElementById('feedback').innerHTML = `
+                <div class="alert alert-info">
+                    ${data.error}
+                    <br>
+                    <a href="{% url 'game:leaderboard' %}" class="btn btn-primary mt-2">
+                        Voir le classement
+                    </a>
+                </div>`;
+            document.getElementById('answerInput').disabled = true;
+            return;
+        }
+        
+        // Mettre à jour l'image et l'ID de session
+        const gameImage = document.getElementById('gameImage');
+        gameImage.src = data.image_url;
+        gameImage.dataset.gameName = data.game_name;
+        currentSessionId = data.session_id;
+        currentGameName = data.game_name;
+        playedGames.push(currentGameName);
+        
+        // Réinitialiser les variables
+        timeLeft = GAME_DURATION;
+        gameEnded = false;
+        document.getElementById('answerInput').disabled = false;
+        document.getElementById('answerInput').value = '';
+        document.getElementById('feedback').innerHTML = '';
+        document.getElementById('attempts').textContent = '0';
+        document.getElementById('score').textContent = '100';
+        document.getElementById('nextRoundBtn').style.display = 'none';
+        document.getElementById('roundsInfo').textContent = `Round ${currentRound}/${TOTAL_ROUNDS}`;
+        
+        // Redémarrer le timer et l'effet de zoom
+        updateImage(1);
+        startTimer();
+    } catch (error) {
+        console.error('Erreur lors du chargement du nouveau round:', error);
+        document.getElementById('feedback').innerHTML = `
+            <div class="alert alert-danger">
+                Une erreur est survenue lors du chargement du nouveau round. 
+                Veuillez rafraîchir la page.
+            </div>`;
+    }
+}
+
+function showSuggestions(items) {
+    const suggestionsList = document.getElementById('suggestionsList');
+    suggestions = items;
+    
+    if (items.length === 0) {
+        suggestionsList.style.display = 'none';
+        return;
+    }
+
+    suggestionsList.innerHTML = items
+        .map((item, index) => `
+            <div class="suggestion-item" 
+                 data-index="${index}" 
+                 onclick="selectSuggestion(${index})">
+                ${item}
+            </div>
+        `)
+        .join('');
+    
+    suggestionsList.style.display = 'block';
+}
+
+function selectSuggestion(index) {
+    const input = document.getElementById('answerInput');
+    input.value = suggestions[index];
+    document.getElementById('suggestionsList').style.display = 'none';
+    currentSuggestionIndex = -1;
+    input.focus();
+}
+
+function updateSelectedSuggestion() {
+    const items = document.querySelectorAll('.suggestion-item');
+    items.forEach(item => item.classList.remove('active'));
+    
+    if (currentSuggestionIndex >= 0 && currentSuggestionIndex < items.length) {
+        items[currentSuggestionIndex].classList.add('active');
+        items[currentSuggestionIndex].scrollIntoView({ block: 'nearest' });
+    }
+}
+
+let debounceTimeout;
+
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('answerForm');
+    const input = document.getElementById('answerInput');
+    const feedback = document.getElementById('feedback');
+    const nextRoundBtn = document.getElementById('nextRoundBtn');
+
+    document.getElementById('roundsInfo').textContent = `Round ${currentRound}/${TOTAL_ROUNDS}`;
+    startTimer();
+    updateImage(1);
+
+    nextRoundBtn.addEventListener('click', function() {
+        currentRound++;
+        if (currentRound <= TOTAL_ROUNDS) {
+            startNewRound();
+        } else {
+            window.location.href = '{% url "game:leaderboard" %}';
+        }
+    });
+
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        if (gameEnded) return;
+
+        const answer = input.value.trim();
+        if (!answer) return;
+        
+        try {
+            const response = await fetch(`/game/check/${currentSessionId}/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                },
+                body: `answer=${encodeURIComponent(answer)}`
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+            document.getElementById('attempts').textContent = data.attempts;
+            
+            if (data.correct) {
+                gameEnded = true;
+                totalScore += data.score;
+                document.getElementById('totalScore').textContent = totalScore;
+                feedback.innerHTML = `
+                    <div class="alert alert-success">
+                        Bravo ! Vous avez trouvé en ${data.attempts} tentative(s) !
+                        Score : ${data.score} points
+                    </div>`;
+                document.getElementById('score').textContent = data.score;
+                input.disabled = true;
+                updateImage(0);
+                
+                if (currentRound < TOTAL_ROUNDS) {
+                    document.getElementById('nextRoundBtn').style.display = 'inline-block';
+                } else {
+                    feedback.innerHTML += `
+                        <div class="alert alert-info mt-3">
+                            Partie terminée ! Score total : ${totalScore} points
+                        </div>`;
+                }
+            } else {
+                feedback.innerHTML = `
+                    <div class="alert alert-warning">
+                        Essayez encore !
+                    </div>`;
+                document.getElementById('score').textContent = Math.max(100 - ((data.attempts - 1) * 10), 10);
+                input.value = '';
+                input.focus();
+            }
+        } catch (error) {
+            console.error('Erreur:', error);
+            feedback.innerHTML = `
+                <div class="alert alert-danger">
+                    Une erreur est survenue. Veuillez réessayer.
+                </div>`;
+        }
+    });
+
+    input.addEventListener('input', function() {
+        clearTimeout(debounceTimeout);
+        const query = this.value.trim();
+        
+        if (query.length < 2) {
+            document.getElementById('suggestionsList').style.display = 'none';
+            return;
+        }
+
+        debounceTimeout = setTimeout(async () => {
+            try {
+                const response = await fetch(`/game/suggestions/?q=${encodeURIComponent(query)}`);
+                const data = await response.json();
+                showSuggestions(data.suggestions);
+            } catch (error) {
+                console.error('Erreur lors de la récupération des suggestions:', error);
+            }
+        }, 300);
+    });
+
+    input.addEventListener('keydown', function(e) {
+        if (!document.getElementById('suggestionsList').style.display || document.getElementById('suggestionsList').style.display === 'none') {
+            return;
+        }
+
+        switch(e.key) {
+            case 'ArrowDown':
+                e.preventDefault();
+                currentSuggestionIndex = Math.min(
+                    currentSuggestionIndex + 1,
+                    suggestions.length - 1
+                );
+                updateSelectedSuggestion();
+                break;
+
+            case 'ArrowUp':
+                e.preventDefault();
+                currentSuggestionIndex = Math.max(currentSuggestionIndex - 1, -1);
+                updateSelectedSuggestion();
+                break;
+
+            case 'Enter':
+                if (currentSuggestionIndex >= 0) {
+                    e.preventDefault();
+                    selectSuggestion(currentSuggestionIndex);
+                }
+                break;
+
+            case 'Escape':
+                document.getElementById('suggestionsList').style.display = 'none';
+                currentSuggestionIndex = -1;
+                break;
+        }
+    });
+
+    // Fermer les suggestions en cliquant en dehors
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.suggestions-container')) {
+            document.getElementById('suggestionsList').style.display = 'none';
+            currentSuggestionIndex = -1;
+        }
+    });
+});
+</script>
+{% endblock %} 

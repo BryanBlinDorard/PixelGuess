@@ -1,0 +1,6 @@
+Django>=5.1.6
+requests>=2.32.3
+python-dotenv>=1.0.1
+python-steam-api>=1.0.0
+django-crispy-forms>=2.1
+Pillow>=10.2.0  # Pour la gestion des images 

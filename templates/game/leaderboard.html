@@ -1,0 +1,110 @@
+{% extends 'base.html' %}
+
+{% block title %}Classement - Pixel Guess{% endblock %}
+
+{% block extra_css %}
+<style>
+    progress {
+        -webkit-appearance: none;
+        appearance: none;
+    }
+
+    progress.success::-webkit-progress-value { background-color: #198754; }
+    progress.info::-webkit-progress-value { background-color: #0dcaf0; }
+    progress.warning::-webkit-progress-value { background-color: #ffc107; }
+    progress.danger::-webkit-progress-value { background-color: #dc3545; }
+
+    progress.success::-moz-progress-bar { background-color: #198754; }
+    progress.info::-moz-progress-bar { background-color: #0dcaf0; }
+    progress.warning::-moz-progress-bar { background-color: #ffc107; }
+    progress.danger::-moz-progress-bar { background-color: #dc3545; }
+
+    progress::-webkit-progress-bar {
+        background-color: #e9ecef;
+        border-radius: 4px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-10">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-trophy me-2"></i>Classement global
+                    </h4>
+                </div>
+                <div class="card-body">
+                    {% if user_stats %}
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th class="text-center">#</th>
+                                        <th>Joueur</th>
+                                        <th class="text-center">Score Total</th>
+                                        <th class="text-center">Parties jouées</th>
+                                        <th class="text-center">Taux de réussite</th>
+                                        <th class="text-center">Moyenne tentatives</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for stats in user_stats %}
+                                        <tr {% if stats.user__username == request.user.username %}class="table-primary"{% endif %}>
+                                            <td class="text-center">{{ forloop.counter }}</td>
+                                            <td>
+                                                {% if stats.user__userprofile__steamprofile__steam_avatar %}
+                                                    <img src="{{ stats.user__userprofile__steamprofile__steam_avatar }}" 
+                                                         alt="Avatar" 
+                                                         class="rounded-circle me-2"
+                                                         style="width: 24px; height: 24px;">
+                                                {% endif %}
+                                                {{ stats.user__userprofile__steamprofile__steam_username|default:stats.user__username }}
+                                            </td>
+                                            <td class="text-center">
+                                                <span class="badge bg-success">{{ stats.total_score }} pts</span>
+                                            </td>
+                                            <td class="text-center">{{ stats.games_played }}</td>
+                                            <td class="text-center">
+                                                <div class="progress-wrapper" style="position: relative; height: 20px;">
+                                                    <progress 
+                                                        class="{% if stats.success_rate >= 75 %}success{% elif stats.success_rate >= 50 %}info{% elif stats.success_rate >= 25 %}warning{% else %}danger{% endif %}"
+                                                        value="{{ stats.success_rate }}" 
+                                                        max="100"
+                                                        style="width: 100%; height: 100%;">
+                                                        {{ stats.success_rate }}%
+                                                    </progress>
+                                                    <span style="position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); color: #fff;">
+                                                        {{ stats.success_rate }}%
+                                                    </span>
+                                                </div>
+                                            </td>
+                                            <td class="text-center">
+                                                <span class="badge {% if stats.avg_attempts <= 3 %}bg-success{% elif stats.avg_attempts <= 5 %}bg-info{% elif stats.avg_attempts <= 7 %}bg-warning{% else %}bg-danger{% endif %}">
+                                                    {{ stats.avg_attempts }}
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-4">
+                            <p class="mb-0">Aucune partie terminée pour le moment.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="text-center mt-4">
+                <a href="{% url 'game:start_game' %}" class="btn btn-primary">
+                    <i class="fas fa-play me-2"></i>Nouvelle partie
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

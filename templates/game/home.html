@@ -1,0 +1,123 @@
+{% extends 'base.html' %}
+
+{% block title %}Jouer - Pixel Guess{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8 text-center">
+            <h1 class="display-4 mb-4">Prêt à jouer ?</h1>
+            
+            {% if user.steam_games.exists %}
+                <div class="mb-5">
+                    <p class="lead mb-4">Vous avez {{ user.steam_games.count }} jeux synchronisés dans votre bibliothèque.</p>
+                    <a href="{% url 'game:start_game' %}" class="btn btn-primary btn-lg">
+                        <i class="fas fa-play me-2"></i>Nouvelle partie
+                    </a>
+                </div>
+
+                <div class="card mt-4">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Vos statistiques</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="text-center">
+                                    <h6 class="text-muted">Meilleur score</h6>
+                                    <p class="display-6">{{ best_session.score|default:"0" }}</p>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="text-center">
+                                    <h6 class="text-muted">Parties jouées</h6>
+                                    <h3 class="mb-0">{{ user.gamesession_set.count }}</h3>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="text-center">
+                                    <h6 class="text-muted">Parties gagnées</h6>
+                                    <h3 class="mb-0">{{ user.gamesession_set.filter.is_completed=True.count }}</h3>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% else %}
+                <div class="alert alert-info" role="alert">
+                    <h4 class="alert-heading mb-3">Synchronisation nécessaire</h4>
+                    <p>Vous devez d'abord synchroniser votre bibliothèque Steam pour commencer à jouer.</p>
+                    <hr>
+                    <a href="{% url 'game:sync_games' %}" class="btn btn-primary">
+                        <i class="fas fa-sync me-2"></i>Synchroniser ma bibliothèque
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if user.gamesession_set.exists %}
+    <div class="row mt-5">
+        <div class="col-md-12">
+            <h3 class="mb-4">Vos dernières parties</h3>
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Jeu</th>
+                            <th>Date</th>
+                            <th>Score</th>
+                            <th>Tentatives</th>
+                            <th>Statut</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for session in user.gamesession_set.all|slice:":5" %}
+                        <tr>
+                            <td>{{ session.game.name }}</td>
+                            <td>{{ session.start_time|date:"d/m/Y H:i" }}</td>
+                            <td>{{ session.score }}</td>
+                            <td>{{ session.attempts }}</td>
+                            <td>
+                                {% if session.is_completed %}
+                                    <span class="badge bg-success">Terminé</span>
+                                {% else %}
+                                    <span class="badge bg-warning">En cours</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+{% if not user.steam_games.exists %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const syncButton = document.querySelector('a[href="{% url "game:sync_games" %}"]');
+    if (syncButton) {
+        syncButton.addEventListener('click', function(e) {
+            e.preventDefault();
+            fetch('{% url "game:sync_games" %}')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        window.location.reload();
+                    } else {
+                        alert('Erreur lors de la synchronisation : ' + (data.error || 'Erreur inconnue'));
+                    }
+                })
+                .catch(error => {
+                    console.error('Erreur:', error);
+                    alert('Erreur lors de la synchronisation');
+                });
+        });
+    }
+});
+</script>
+{% endif %}
+{% endblock %} 

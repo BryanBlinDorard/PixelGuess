@@ -1,0 +1,558 @@
+{% extends 'base.html' %}
+
+{% block title %}Liste des jeux - Pixel Guess{% endblock %}
+
+{% block extra_css %}
+<style>
+    .game-list {
+        max-width: 800px;
+        margin: 0 auto;
+    }
+
+    .filters-section {
+        background-color: var(--bg-secondary);
+        padding: 1.5rem;
+        border-radius: 8px;
+        margin-bottom: 2rem;
+        border: 1px solid var(--border-color);
+    }
+
+    .search-box {
+        margin-bottom: 1rem;
+    }
+
+    .search-box input {
+        background-color: var(--bg-primary);
+        color: var(--text-primary);
+        border-color: var(--border-color);
+    }
+
+    .search-box input:focus {
+        background-color: var(--bg-primary);
+        color: var(--text-primary);
+    }
+
+    .filters-row {
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+        margin-bottom: 1rem;
+    }
+
+    .filter-group {
+        flex: 1;
+        min-width: 200px;
+    }
+
+    .filter-group select,
+    .filter-group input {
+        background-color: var(--bg-primary);
+        color: var(--text-primary);
+        border-color: var(--border-color);
+    }
+
+    .filter-group select:focus,
+    .filter-group input:focus {
+        background-color: var(--bg-primary);
+        color: var(--text-primary);
+    }
+
+    .filter-sections {
+        border-top: 1px solid var(--border-color);
+        padding-top: 1rem;
+    }
+
+    .filter-section {
+        margin-bottom: 0.5rem;
+    }
+
+    .filter-section button[data-bs-toggle="collapse"] {
+        text-align: left;
+        padding: 0.5rem 1rem;
+        transition: all 0.2s;
+        background-color: var(--bg-primary);
+        color: var(--text-primary);
+        border-color: var(--border-color);
+    }
+
+    .filter-section button[data-bs-toggle="collapse"]:hover {
+        background-color: var(--hover-bg);
+    }
+
+    .filter-section button[data-bs-toggle="collapse"] i {
+        transition: transform 0.2s;
+    }
+
+    .filter-section .collapse {
+        transition: all 0.2s;
+    }
+
+    .tags-filter {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        padding: 0.5rem;
+        max-height: 200px;
+        overflow-y: auto;
+    }
+
+    .tag-filter {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        background-color: var(--bg-primary);
+        color: var(--text-primary);
+        cursor: pointer;
+        font-size: 0.9rem;
+        transition: all 0.2s;
+        border: 1px solid var(--border-color);
+    }
+
+    .tag-filter:hover {
+        background-color: var(--hover-bg);
+    }
+
+    .tag-filter.active {
+        background-color: #0d6efd;
+        color: white;
+    }
+
+    .game-item {
+        display: flex;
+        align-items: center;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        background-color: var(--bg-secondary);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        transition: transform 0.2s, background-color 0.2s;
+    }
+
+    .game-item:hover {
+        transform: translateX(5px);
+        background-color: var(--hover-bg);
+    }
+
+    .game-link {
+        display: flex;
+        align-items: center;
+        text-decoration: none;
+        color: var(--text-primary);
+        width: 100%;
+    }
+
+    .game-link:hover {
+        color: var(--text-primary);
+    }
+
+    .game-icon {
+        width: 90px;
+        height: 135px;
+        object-fit: cover;
+        border-radius: 8px;
+        margin-right: 1.5rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .game-info {
+        flex-grow: 1;
+    }
+
+    .game-name {
+        font-size: 1.2rem;
+        margin-bottom: 0.25rem;
+    }
+
+    .game-meta {
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .game-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-top: 0.5rem;
+    }
+
+    .game-tag {
+        background-color: var(--bg-primary);
+        color: var(--text-primary);
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.8rem;
+        border: 1px solid var(--border-color);
+    }
+
+    .game-genre {
+        background-color: rgba(13, 110, 253, 0.1);
+        color: #0d6efd;
+    }
+
+    [data-bs-theme="dark"] .game-genre {
+        background-color: rgba(13, 110, 253, 0.2);
+        color: #6ea8fe;
+    }
+
+    .game-item.hidden {
+        display: none;
+    }
+
+    .no-results {
+        text-align: center;
+        padding: 2rem;
+        background-color: #f8f9fa;
+        border-radius: 8px;
+        margin-top: 1rem;
+        display: none;
+    }
+
+    .no-results.visible {
+        display: block;
+    }
+
+    .reset-filters {
+        position: relative;
+        float: right;
+        margin-bottom: 1rem;
+        padding: 0.5rem 1rem;
+        font-size: 0.9rem;
+        color: var(--text-secondary);
+        background: none;
+        border: 1px solid var(--text-secondary);
+        border-radius: 20px;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .reset-filters:hover {
+        color: var(--bg-primary);
+        background-color: var(--text-secondary);
+    }
+
+    .reset-filters i {
+        font-size: 0.8rem;
+    }
+
+    .filters-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <h2 class="text-center mb-4">Liste des jeux disponibles</h2>
+    
+    <div class="filters-section">
+        <div class="filters-header">
+            <h5 class="mb-0">Filtres</h5>
+            <button class="reset-filters" id="resetFilters">
+                <i class="fas fa-undo-alt"></i>
+                Réinitialiser
+            </button>
+        </div>
+        
+        <div class="search-box">
+            <input type="text" 
+                   class="form-control" 
+                   id="searchInput" 
+                   placeholder="Rechercher un jeu...">
+        </div>
+        
+        <div class="filters-row">
+            <div class="filter-group">
+                <label class="form-label">Trier par</label>
+                <select class="form-select" id="sortSelect">
+                    <option value="name">Nom</option>
+                    <option value="release_date">Date de sortie</option>
+                    <option value="player_count">Popularité</option>
+                </select>
+            </div>
+            
+            <div class="filter-group">
+                <label class="form-label">Nombre minimum de joueurs</label>
+                <input type="number" 
+                       class="form-control" 
+                       id="minPlayersInput" 
+                       min="1">
+            </div>
+            
+            <div class="filter-group">
+                <label class="form-label">Direction</label>
+                <select class="form-select" id="orderSelect">
+                    <option value="asc">Croissant</option>
+                    <option value="desc">Décroissant</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="filter-sections">
+            <div class="filter-section mb-3">
+                <button class="btn btn-outline-secondary w-100 d-flex justify-content-between align-items-center" 
+                        type="button" 
+                        data-bs-toggle="collapse" 
+                        data-bs-target="#genresCollapse" 
+                        aria-expanded="false">
+                    <span>Genres</span>
+                    <i class="fas fa-chevron-down"></i>
+                </button>
+                <div class="collapse" id="genresCollapse">
+                    <div class="tags-filter mt-2" id="genresFilter">
+                        <button class="tag-filter active" data-genre="all">Tous</button>
+                        {% for genre in all_genres %}
+                            <button class="tag-filter" data-genre="{{ genre }}">{{ genre }}</button>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="filter-section">
+                <button class="btn btn-outline-secondary w-100 d-flex justify-content-between align-items-center" 
+                        type="button" 
+                        data-bs-toggle="collapse" 
+                        data-bs-target="#tagsCollapse" 
+                        aria-expanded="false">
+                    <span>Tags Steam</span>
+                    <i class="fas fa-chevron-down"></i>
+                </button>
+                <div class="collapse" id="tagsCollapse">
+                    <div class="tags-filter mt-2" id="tagsFilter">
+                        <button class="tag-filter active" data-tag="all">Tous</button>
+                        {% for tag in all_tags %}
+                            <button class="tag-filter" data-tag="{{ tag }}">{{ tag }}</button>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="game-list" id="gameList">
+        {% for game in games %}
+        <div class="game-item" 
+             data-name="{{ game.name|lower }}"
+             data-players="{{ game.player_count }}"
+             data-release-date="{{ game.release_date|date:'Y-m-d'|default:'' }}"
+             data-tags="{{ game.tags|join:',' }}"
+             data-genres="{{ game.genres|join:',' }}">
+            <a href="https://store.steampowered.com/app/{{ game.app_id }}" target="_blank" class="game-link">
+                <img src="{{ game.image_url }}" alt="{{ game.name }}" class="game-icon">
+                <div class="game-info">
+                    <div class="game-name">{{ game.name }}</div>
+                    <div class="game-meta">
+                        {% if game.release_date %}
+                            <span class="me-3">
+                                <i class="far fa-calendar-alt"></i>
+                                {{ game.release_date|date:"Y" }}
+                            </span>
+                        {% endif %}
+                        <span>
+                            <i class="fas fa-users"></i>
+                            {{ game.player_count }} joueur{{ game.player_count|pluralize:"s" }}
+                        </span>
+                    </div>
+                    {% if game.genres %}
+                        <div class="game-tags">
+                            {% for genre in game.genres %}
+                                <span class="game-tag game-genre">{{ genre }}</span>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                    {% if game.tags %}
+                        <div class="game-tags">
+                            {% for tag in game.tags|slice:":5" %}
+                                <span class="game-tag">{{ tag }}</span>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+            </a>
+        </div>
+        {% empty %}
+        <div class="text-center">
+            <p>Aucun jeu n'a encore été synchronisé.</p>
+            <a href="{% url 'game:sync_games' %}" class="btn btn-primary">
+                Synchroniser mes jeux Steam
+            </a>
+        </div>
+        {% endfor %}
+        
+        <div class="no-results">
+            <p>Aucun jeu ne correspond à votre recherche.</p>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+const gameList = document.getElementById('gameList');
+const searchInput = document.getElementById('searchInput');
+const sortSelect = document.getElementById('sortSelect');
+const minPlayersInput = document.getElementById('minPlayersInput');
+const orderSelect = document.getElementById('orderSelect');
+const noResults = document.querySelector('.no-results');
+const genreFilters = document.querySelectorAll('[data-genre]');
+const tagFilters = document.querySelectorAll('[data-tag]');
+
+let selectedGenre = 'all';
+let selectedTag = 'all';
+
+function debounce(func, wait) {
+    let timeout;
+    return function(...args) {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => func.apply(this, args), wait);
+    };
+}
+
+function filterAndSortGames() {
+    const searchQuery = searchInput.value.toLowerCase();
+    const sortBy = sortSelect.value;
+    const minPlayers = parseInt(minPlayersInput.value) || 0;
+    const order = orderSelect.value;
+    
+    const gameItems = Array.from(gameList.getElementsByClassName('game-item'));
+    let visibleCount = 0;
+    
+    // Filtrer
+    gameItems.forEach(item => {
+        const name = item.dataset.name;
+        const players = parseInt(item.dataset.players);
+        const tags = item.dataset.tags.split(',');
+        const genres = item.dataset.genres.split(',');
+        
+        const matchesSearch = name.includes(searchQuery);
+        const matchesPlayers = players >= minPlayers;
+        const matchesTag = selectedTag === 'all' || tags.includes(selectedTag);
+        const matchesGenre = selectedGenre === 'all' || genres.includes(selectedGenre);
+        
+        const isVisible = matchesSearch && matchesPlayers && matchesTag && matchesGenre;
+        item.classList.toggle('hidden', !isVisible);
+        if (isVisible) visibleCount++;
+    });
+    
+    // Afficher/masquer le message "Aucun résultat"
+    noResults.classList.toggle('visible', visibleCount === 0);
+    
+    // Trier les éléments visibles
+    const visibleItems = gameItems.filter(item => !item.classList.contains('hidden'));
+    visibleItems.sort((a, b) => {
+        let valueA, valueB;
+        
+        if (sortBy === 'player_count') {
+            valueA = parseInt(a.dataset.players);
+            valueB = parseInt(b.dataset.players);
+        } else if (sortBy === 'release_date') {
+            valueA = a.dataset.releaseDate || '0000-00-00';
+            valueB = b.dataset.releaseDate || '0000-00-00';
+        } else { // name
+            valueA = a.dataset.name;
+            valueB = b.dataset.name;
+        }
+        
+        if (order === 'desc') {
+            [valueA, valueB] = [valueB, valueA];
+        }
+        
+        return valueA < valueB ? -1 : valueA > valueB ? 1 : 0;
+    });
+    
+    // Réorganiser les éléments
+    visibleItems.forEach(item => gameList.appendChild(item));
+}
+
+// Événements
+searchInput.addEventListener('input', debounce(filterAndSortGames, 300));
+sortSelect.addEventListener('change', filterAndSortGames);
+minPlayersInput.addEventListener('input', debounce(filterAndSortGames, 300));
+orderSelect.addEventListener('change', filterAndSortGames);
+
+// Gestion des filtres par genre
+genreFilters.forEach(button => {
+    button.addEventListener('click', () => {
+        genreFilters.forEach(btn => btn.classList.remove('active'));
+        button.classList.add('active');
+        selectedGenre = button.dataset.genre;
+        filterAndSortGames();
+    });
+});
+
+// Gestion des filtres par tag
+tagFilters.forEach(button => {
+    button.addEventListener('click', () => {
+        tagFilters.forEach(btn => btn.classList.remove('active'));
+        button.classList.add('active');
+        selectedTag = button.dataset.tag;
+        filterAndSortGames();
+    });
+});
+
+// Gestion des icônes de collapse
+document.querySelectorAll('[data-bs-toggle="collapse"]').forEach(button => {
+    button.addEventListener('click', () => {
+        const icon = button.querySelector('i');
+        icon.style.transform = button.getAttribute('aria-expanded') === 'true' 
+            ? 'rotate(0deg)' 
+            : 'rotate(180deg)';
+    });
+});
+
+// Fonction de réinitialisation des filtres
+function resetFilters() {
+    // Réinitialiser la recherche
+    searchInput.value = '';
+    
+    // Réinitialiser le tri
+    sortSelect.value = 'name';
+    orderSelect.value = 'asc';
+    
+    // Réinitialiser le nombre minimum de joueurs
+    minPlayersInput.value = '';
+    
+    // Réinitialiser les genres
+    genreFilters.forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.dataset.genre === 'all') {
+            btn.classList.add('active');
+        }
+    });
+    selectedGenre = 'all';
+    
+    // Réinitialiser les tags
+    tagFilters.forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.dataset.tag === 'all') {
+            btn.classList.add('active');
+        }
+    });
+    selectedTag = 'all';
+    
+    // Réinitialiser les collapses
+    document.querySelectorAll('.collapse').forEach(collapse => {
+        collapse.classList.remove('show');
+    });
+    
+    document.querySelectorAll('[data-bs-toggle="collapse"] i').forEach(icon => {
+        icon.style.transform = 'rotate(0deg)';
+    });
+    
+    // Mettre à jour l'affichage
+    filterAndSortGames();
+}
+
+// Ajouter l'événement au bouton de réinitialisation
+document.getElementById('resetFilters').addEventListener('click', resetFilters);
+
+// Filtrage initial
+filterAndSortGames();
+</script>
+{% endblock %}
+{% endblock %} 
