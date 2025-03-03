@@ -31,3 +31,37 @@ class GameSession(models.Model):
 
     def __str__(self):
         return f"Session de {self.user.username} - {self.game.name}"
+
+class AnimeEntry(models.Model):
+    WATCHING = 'WATCHING'
+    COMPLETED = 'COMPLETED'
+    PLANNING = 'PLANNING'
+    DROPPED = 'DROPPED'
+    PAUSED = 'PAUSED'
+
+    STATUS_CHOICES = [
+        (WATCHING, 'En cours'),
+        (COMPLETED, 'Terminé'),
+        (PLANNING, 'Prévu'),
+        (DROPPED, 'Abandonné'),
+        (PAUSED, 'En pause'),
+    ]
+
+    user = models.ManyToManyField(User, related_name='anime_entries')
+    anilist_id = models.IntegerField(unique=True)
+    title_romaji = models.CharField(max_length=255)
+    title_english = models.CharField(max_length=255, null=True, blank=True)
+    title_native = models.CharField(max_length=255, null=True, blank=True)
+    cover_image = models.URLField(max_length=500)
+    banner_image = models.URLField(max_length=500, null=True, blank=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES)
+    episodes = models.IntegerField(null=True, blank=True)
+    description = models.TextField(null=True, blank=True)
+    genres = models.JSONField(default=list, blank=True)
+    tags = models.JSONField(default=list, blank=True)
+    average_score = models.IntegerField(null=True, blank=True)
+    is_synced = models.BooleanField(default=False)
+    last_updated = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.title_romaji

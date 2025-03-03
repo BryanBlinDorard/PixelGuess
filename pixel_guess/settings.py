@@ -172,6 +172,11 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 STEAM_API_KEY = os.getenv('STEAM_API_KEY')
 STEAM_RETURN_URL = os.getenv('STEAM_RETURN_URL')
 
+# Anilist API configuration
+ANILIST_CLIENT_ID = os.getenv('ANILIST_CLIENT_ID')
+ANILIST_CLIENT_SECRET = os.getenv('ANILIST_CLIENT_SECRET')
+ANILIST_REDIRECT_URI = os.getenv('ANILIST_REDIRECT_URI', 'http://localhost:8000/accounts/anilist/callback/')
+
 # Crispy Forms
 CRISPY_TEMPLATE_PACK = 'bootstrap4'
 

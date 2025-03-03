@@ -71,13 +71,68 @@
                                         Dernière synchronisation: {{ steam_profile.last_sync|date:"d/m/Y H:i" }}
                                     </small>
                                 </p>
+                                <a href="{% url 'game:sync_games' %}" class="btn btn-outline-primary ms-2">
+                                    <i class="fas fa-sync me-2"></i>Synchroniser les jeux
+                                </a>
                             </div>
                         </div>
+                        
                     {% else %}
                         <div class="text-center py-4">
                             <p class="mb-3">Vous n'avez pas encore lié votre compte Steam.</p>
                             <a href="{% url 'accounts:steam_login' %}" class="btn btn-dark">
                                 <i class="fab fa-steam me-2"></i>Lier mon compte Steam
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Profil Anilist -->
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-tv me-2"></i>Compte Anilist
+                    </h4>
+                </div>
+                <div class="card-body">
+                    {% if anilist_profile %}
+                        <div class="row align-items-center">
+                            <div class="col-auto">
+                                {% if anilist_profile.anilist_avatar %}
+                                    <img src="{{ anilist_profile.anilist_avatar }}" 
+                                         alt="Avatar Anilist" 
+                                         class="rounded-circle"
+                                         style="width: 100px; height: 100px;">
+                                {% endif %}
+                            </div>
+                            <div class="col">
+                                <h5 class="card-title">{{ anilist_profile.anilist_username }}</h5>
+                                <p class="card-text">
+                                    <small class="text-muted">
+                                        Anilist ID: {{ anilist_profile.anilist_id }}
+                                    </small>
+                                </p>
+                                <p class="card-text">
+                                    <small class="text-muted">
+                                        Dernière synchronisation: {{ anilist_profile.last_sync|date:"d/m/Y H:i" }}
+                                    </small>
+                                </p>
+                                <p class="card-text">
+                                    <small class="text-muted">
+                                        Animes synchronisés: {{ user.anime_entries.count }}
+                                    </small>
+                                </p>
+                                <a href="{% url 'accounts:sync_anime_list' %}" class="btn btn-outline-primary">
+                                    <i class="fas fa-sync me-2"></i>Synchroniser mes animes
+                                </a>
+                            </div>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-4">
+                            <p class="mb-3">Vous n'avez pas encore lié votre compte Anilist.</p>
+                            <a href="{% url 'accounts:anilist_login' %}" class="btn btn-primary">
+                                <i class="fas fa-tv me-2"></i>Lier mon compte Anilist
                             </a>
                         </div>
                     {% endif %}
@@ -150,16 +205,7 @@
             </div>
 
             <!-- Actions -->
-            <div class="text-center mt-4">
-                <a href="{% url 'game:start_game' %}" class="btn btn-primary">
-                    <i class="fas fa-play me-2"></i>Nouvelle partie
-                </a>
-                {% if steam_profile %}
-                    <a href="{% url 'game:sync_games' %}" class="btn btn-outline-primary ms-2">
-                        <i class="fas fa-sync me-2"></i>Synchroniser les jeux
-                    </a>
-                {% endif %}
-            </div>
+            
         </div>
     </div>
 </div>

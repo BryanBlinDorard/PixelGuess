@@ -31,3 +31,14 @@ def create_user_profile(sender, instance, created, **kwargs):
 @receiver(post_save, sender=User)
 def save_user_profile(sender, instance, **kwargs):
     instance.userprofile.save()
+
+class AnilistProfile(models.Model):
+    user_profile = models.OneToOneField(UserProfile, on_delete=models.CASCADE)
+    anilist_id = models.CharField(max_length=50)
+    anilist_username = models.CharField(max_length=255)
+    anilist_avatar = models.URLField(max_length=500, null=True, blank=True)
+    last_sync = models.DateTimeField(auto_now=True)
+    access_token = models.CharField(max_length=255, null=True, blank=True)
+
+    def __str__(self):
+        return f"Profil Anilist de {self.user_profile.user.username}"

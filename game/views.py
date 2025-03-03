@@ -10,7 +10,7 @@ import io
 from PIL import Image
 import base64
 from urllib.request import urlopen
-from .models import SteamGame, GameSession
+from .models import SteamGame, GameSession, AnimeEntry
 from django.db.models import Count, Sum, Avg, F, Case, When, IntegerField, FloatField, ExpressionWrapper, DurationField
 from django.db.models.functions import Round
 from django.contrib import messages
@@ -355,3 +355,31 @@ def get_pixelated_image(request):
         return JsonResponse({'image_data': pixelated_image})
     
     return JsonResponse({'error': 'Invalid request'}, status=400)
+
+@login_required
+def animes_list(request):
+    animes = AnimeEntry.objects.filter(is_synced=True).distinct()
+    
+    # Compter le nombre d'utilisateurs par anime
+    animes = animes.annotate(
+        user_count=Count('user', distinct=True)
+    )
+
+    # Récupérer tous les genres uniques
+    all_genres = set()
+    for anime in animes:
+        all_genres.update(anime.genres)
+    all_genres = sorted(list(all_genres))
+
+    # Récupérer tous les tags uniques
+    all_tags = set()
+    for anime in animes:
+        all_tags.update(anime.tags)
+    all_tags = sorted(list(all_tags))
+
+    context = {
+        'animes': animes,
+        'genres': all_genres,
+        'tags': all_tags
+    }
+    return render(request, 'game/animes_list.html', context)

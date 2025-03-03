@@ -1,0 +1,329 @@
+{% extends 'base.html' %}
+
+{% block title %}Animes Disponibles - Pixel Guess{% endblock %}
+
+{% block extra_css %}
+<style>
+    .filters-section {
+        background-color: var(--bg-secondary);
+        padding: 1.5rem;
+        border-radius: 8px;
+        margin-bottom: 2rem;
+        border: 1px solid var(--border-color);
+    }
+
+    .search-box {
+        margin-bottom: 1rem;
+    }
+
+    .filters-row {
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .filter-group {
+        flex: 1;
+        min-width: 200px;
+    }
+
+    .anime-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+        gap: 1.5rem;
+        margin-top: 2rem;
+    }
+
+    .anime-item {
+        background-color: var(--bg-secondary);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        overflow: hidden;
+        transition: transform 0.2s;
+    }
+
+    .anime-item:hover {
+        transform: translateY(-5px);
+    }
+
+    .anime-cover {
+        width: 100%;
+        height: 350px;
+        object-fit: cover;
+    }
+
+    .anime-info {
+        padding: 1rem;
+    }
+
+    .anime-title {
+        font-size: 1.1rem;
+        margin-bottom: 0.5rem;
+        color: var(--text-primary);
+    }
+
+    .anime-meta {
+        font-size: 0.9rem;
+        color: var(--text-secondary);
+    }
+
+    .anime-genres {
+        margin-top: 0.5rem;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    .anime-tag {
+        background-color: var(--bg-primary);
+        color: var(--text-primary);
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.8rem;
+        border: 1px solid var(--border-color);
+    }
+
+    .anime-genre {
+        background-color: rgba(13, 110, 253, 0.1);
+        color: #0d6efd;
+    }
+
+    [data-bs-theme="dark"] .anime-genre {
+        background-color: rgba(13, 110, 253, 0.2);
+        color: #6ea8fe;
+    }
+
+    .anime-item.hidden {
+        display: none;
+    }
+
+    .no-results {
+        text-align: center;
+        padding: 2rem;
+        background-color: var(--bg-secondary);
+        border-radius: 8px;
+        margin-top: 1rem;
+        display: none;
+    }
+
+    .no-results.visible {
+        display: block;
+    }
+
+    .reset-filters {
+        position: relative;
+        float: right;
+        margin-bottom: 1rem;
+        padding: 0.5rem 1rem;
+        font-size: 0.9rem;
+        color: var(--text-secondary);
+        background: none;
+        border: 1px solid var(--text-secondary);
+        border-radius: 20px;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .reset-filters:hover {
+        color: var(--bg-primary);
+        background-color: var(--text-secondary);
+    }
+
+    .filters-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <h2 class="text-center mb-4">Liste des animes disponibles</h2>
+    
+    <div class="filters-section">
+        <div class="filters-header">
+            <h5 class="mb-0">Filtres</h5>
+            <button class="reset-filters" id="resetFilters">
+                <i class="fas fa-undo-alt"></i>
+                Réinitialiser
+            </button>
+        </div>
+        
+        <div class="search-box">
+            <input type="text" 
+                   class="form-control" 
+                   id="searchInput" 
+                   placeholder="Rechercher un anime...">
+        </div>
+        
+        <div class="filters-row">
+            <div class="filter-group">
+                <label class="form-label">Trier par</label>
+                <select class="form-select" id="sortSelect">
+                    <option value="title">Titre</option>
+                    <option value="score">Score</option>
+                    <option value="popularity">Popularité</option>
+                </select>
+            </div>
+            
+            <div class="filter-group">
+                <label class="form-label">Genre</label>
+                <select class="form-select" id="genreSelect">
+                    <option value="all">Tous les genres</option>
+                    {% for genre in genres %}
+                        <option value="{{ genre }}">{{ genre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="filter-group">
+                <label class="form-label">Direction</label>
+                <select class="form-select" id="orderSelect">
+                    <option value="asc">Croissant</option>
+                    <option value="desc">Décroissant</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <div class="anime-grid" id="animeList">
+        {% if animes %}
+            {% for anime in animes %}
+                <div class="anime-item" 
+                     data-title="{{ anime.title_romaji|lower }}"
+                     data-score="{{ anime.average_score|default:0 }}"
+                     data-popularity="{{ anime.user_count }}"
+                     data-genres="{{ anime.genres|join:',' }}">
+                    <img src="{{ anime.cover_image }}" 
+                         alt="{{ anime.title_romaji }}" 
+                         class="anime-cover">
+                    <div class="anime-info">
+                        <h3 class="anime-title">{{ anime.title_romaji }}</h3>
+                        <div class="anime-meta">
+                            {% if anime.average_score %}
+                                <span class="me-2">
+                                    <i class="fas fa-star text-warning"></i>
+                                    {{ anime.average_score }}%
+                                </span>
+                            {% endif %}
+                            <span>
+                                <i class="fas fa-users"></i>
+                                {{ anime.user_count }}
+                            </span>
+                        </div>
+                        <div class="anime-genres">
+                            {% for genre in anime.genres|slice:":3" %}
+                                <span class="anime-tag anime-genre">{{ genre }}</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        {% else %}
+            <div class="text-center">
+                <p>Aucun anime n'a encore été synchronisé.</p>
+                <a href="{% url 'accounts:anilist_login' %}" class="btn btn-primary">
+                    Synchroniser mes animes
+                </a>
+            </div>
+        {% endif %}
+        
+        <div class="no-results">
+            <p>Aucun anime ne correspond à votre recherche.</p>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+const animeList = document.getElementById('animeList');
+const searchInput = document.getElementById('searchInput');
+const sortSelect = document.getElementById('sortSelect');
+const genreSelect = document.getElementById('genreSelect');
+const orderSelect = document.getElementById('orderSelect');
+const noResults = document.querySelector('.no-results');
+const resetFilters = document.getElementById('resetFilters');
+
+function debounce(func, wait) {
+    let timeout;
+    return function(...args) {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => func.apply(this, args), wait);
+    };
+}
+
+function filterAnimes() {
+    const searchTerm = searchInput.value.toLowerCase();
+    const selectedGenre = genreSelect.value;
+    const sortBy = sortSelect.value;
+    const orderBy = orderSelect.value;
+    
+    let visibleCount = 0;
+    const animes = Array.from(document.querySelectorAll('.anime-item'));
+    
+    animes.forEach(anime => {
+        const title = anime.dataset.title;
+        const genres = anime.dataset.genres.split(',');
+        
+        const matchesSearch = title.includes(searchTerm);
+        const matchesGenre = selectedGenre === 'all' || genres.includes(selectedGenre);
+        
+        if (matchesSearch && matchesGenre) {
+            anime.classList.remove('hidden');
+            visibleCount++;
+        } else {
+            anime.classList.add('hidden');
+        }
+    });
+    
+    // Trier les animes
+    const sortedAnimes = animes
+        .filter(anime => !anime.classList.contains('hidden'))
+        .sort((a, b) => {
+            let valueA = a.dataset[sortBy];
+            let valueB = b.dataset[sortBy];
+            
+            if (sortBy === 'title') {
+                return orderBy === 'asc' ? 
+                    valueA.localeCompare(valueB) : 
+                    valueB.localeCompare(valueA);
+            } else {
+                return orderBy === 'asc' ? 
+                    Number(valueA) - Number(valueB) : 
+                    Number(valueB) - Number(valueA);
+            }
+        });
+    
+    // Réorganiser les éléments
+    sortedAnimes.forEach(anime => {
+        animeList.appendChild(anime);
+    });
+    
+    noResults.classList.toggle('visible', visibleCount === 0);
+}
+
+const debouncedFilter = debounce(filterAnimes, 300);
+
+searchInput.addEventListener('input', debouncedFilter);
+sortSelect.addEventListener('change', filterAnimes);
+genreSelect.addEventListener('change', filterAnimes);
+orderSelect.addEventListener('change', filterAnimes);
+
+resetFilters.addEventListener('click', () => {
+    searchInput.value = '';
+    sortSelect.value = 'title';
+    genreSelect.value = 'all';
+    orderSelect.value = 'asc';
+    filterAnimes();
+});
+
+// Filtrer initialement pour trier par défaut
+filterAnimes();
+</script>
+{% endblock %}
+{% endblock %} 
