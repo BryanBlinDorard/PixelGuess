@@ -17,13 +17,16 @@
         width: 100%;
         height: 100%;
         object-fit: cover;
-        transform-origin: center;
-        transition: all 0.5s ease;
-        image-rendering: pixelated;
-        filter: brightness(0.9);
+        transition: filter 0.3s ease;
+        opacity: 0;
+        transition: opacity 0.3s ease;
     }
 
-    .zoom-level {
+    .game-image.visible {
+        opacity: 1;
+    }
+
+    .pixel-level {
         position: absolute;
         top: 10px;
         right: 10px;
@@ -55,7 +58,7 @@
 
     .hint {
         font-size: 0.9em;
-        color: #666;
+        color: var(--text-secondary);
         margin-top: 5px;
     }
 
@@ -78,8 +81,8 @@
         top: 100%;
         left: 0;
         right: 0;
-        background: white;
-        border: 1px solid #ddd;
+        background-color: var(--bg-secondary);
+        border: 1px solid var(--border-color);
         border-radius: 0 0 4px 4px;
         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         z-index: 1000;
@@ -92,15 +95,36 @@
         padding: 8px 12px;
         cursor: pointer;
         transition: background-color 0.2s;
+        color: var(--text-primary);
     }
 
     .suggestion-item:hover,
     .suggestion-item.selected {
-        background-color: #f8f9fa;
+        background-color: var(--hover-bg);
+        color: var(--text-primary);
     }
 
     .suggestion-item.active {
-        background-color: #e9ecef;
+        background-color: var(--hover-bg);
+        color: var(--text-primary);
+    }
+
+    /* Style de la barre de défilement pour le thème sombre */
+    [data-bs-theme="dark"] .suggestions-list::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    [data-bs-theme="dark"] .suggestions-list::-webkit-scrollbar-track {
+        background: var(--bg-secondary);
+    }
+
+    [data-bs-theme="dark"] .suggestions-list::-webkit-scrollbar-thumb {
+        background-color: var(--border-color);
+        border-radius: 4px;
+    }
+
+    [data-bs-theme="dark"] .suggestions-list::-webkit-scrollbar-thumb:hover {
+        background-color: var(--text-secondary);
     }
 </style>
 {% endblock %}
@@ -115,8 +139,8 @@
     </div>
 
     <div class="game-image-container mb-4">
-        <img src="{{ image_url }}" alt="Jeu à deviner" class="game-image" id="gameImage" data-game-name="{{ game_name }}">
-        <div class="zoom-level" id="zoomLevel">Zoom: 300%</div>
+        <img src="{{ image_url }}" alt="Jeu à deviner" class="game-image" id="gameImage" data-game-name="{{ game_name }}" data-original-url="{{ image_url }}">
+        <div class="pixel-level" id="pixelLevel">Pixels: 50px</div>
         <div class="rounds-info" id="roundsInfo">Round 1/10</div>
     </div>
 
@@ -158,8 +182,6 @@
 {% block extra_js %}
 <script>
 const GAME_DURATION = 60;
-const MAX_ZOOM = 8; // Zoom initial augmenté à 800%
-const MAX_BLUR = 30; // Flou maximum en pixels
 const TOTAL_ROUNDS = 10;
 let timeLeft = GAME_DURATION;
 let gameEnded = false;
@@ -167,26 +189,61 @@ let currentRound = 1;
 let totalScore = 0;
 let currentGameName = "{{ session.game.name }}";
 let currentSessionId = "{{ session.id }}";
-let playedGames = [currentGameName]; // Ajouter la liste des jeux joués
+let playedGames = [currentGameName];
 
 let currentSuggestionIndex = -1;
 let suggestions = [];
 
 let animationFrameId = null;
 let startTime = null;
+let lastProgress = -1;
+let lastUpdateTime = 0;
+const UPDATE_INTERVAL = 100; // Mettre à jour l'image toutes les 100ms
 
-function updateImage(progress) {
-    const scale = MAX_ZOOM - ((MAX_ZOOM - 1) * (1 - progress));
-    const brightness = 0.9 + (0.1 * progress);
+async function updateImage(progress) {
+    const currentTime = performance.now();
+    
+    if (currentTime - lastUpdateTime < UPDATE_INTERVAL || Math.abs(progress - lastProgress) < 0.02) {
+        return;
+    }
+    
+    lastUpdateTime = currentTime;
+    lastProgress = progress;
     
     const gameImage = document.getElementById('gameImage');
-    gameImage.style.transform = `scale(${scale})`;
-    gameImage.style.filter = `brightness(${brightness})`;
-    document.getElementById('zoomLevel').textContent = `Zoom: ${Math.round(scale * 100)}%`;
+    const originalUrl = gameImage.dataset.originalUrl;
+    
+    try {
+        const response = await fetch('{% url "game:get_pixelated_image" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            },
+            body: JSON.stringify({
+                image_url: originalUrl,
+                progress: progress
+            })
+        });
+        
+        const data = await response.json();
+        if (data.image_data) {
+            gameImage.src = data.image_data;
+            gameImage.onload = () => {
+                gameImage.classList.add('visible');
+            };
+            const pixelSize = Math.max(1, Math.round(50 * progress));
+            document.getElementById('pixelLevel').textContent = `Pixels: ${pixelSize}px`;
+        }
+    } catch (error) {
+        console.error('Erreur lors de la mise à jour de l\'image:', error);
+    }
 }
 
 function startTimer() {
     startTime = performance.now();
+    lastProgress = -1;
+    lastUpdateTime = 0;
     
     function animate(currentTime) {
         if (gameEnded) {
@@ -248,9 +305,12 @@ async function startNewRound() {
             return;
         }
         
-        // Mettre à jour l'image et l'ID de session
+        // Masquer l'image avant de la mettre à jour
         const gameImage = document.getElementById('gameImage');
-        gameImage.src = data.image_url;
+        gameImage.classList.remove('visible');
+        
+        // Mettre à jour les données de l'image
+        gameImage.dataset.originalUrl = data.image_url;
         gameImage.dataset.gameName = data.game_name;
         currentSessionId = data.session_id;
         currentGameName = data.game_name;
@@ -267,8 +327,8 @@ async function startNewRound() {
         document.getElementById('nextRoundBtn').style.display = 'none';
         document.getElementById('roundsInfo').textContent = `Round ${currentRound}/${TOTAL_ROUNDS}`;
         
-        // Redémarrer le timer et l'effet de zoom
-        updateImage(1);
+        // S'assurer que l'image est pixelisée avant d'être affichée
+        await updateImage(1);
         startTimer();
     } catch (error) {
         console.error('Erreur lors du chargement du nouveau round:', error);
@@ -322,15 +382,16 @@ function updateSelectedSuggestion() {
 
 let debounceTimeout;
 
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
     const form = document.getElementById('answerForm');
     const input = document.getElementById('answerInput');
     const feedback = document.getElementById('feedback');
     const nextRoundBtn = document.getElementById('nextRoundBtn');
 
     document.getElementById('roundsInfo').textContent = `Round ${currentRound}/${TOTAL_ROUNDS}`;
+    // S'assurer que l'image initiale est pixelisée
+    await updateImage(1);
     startTimer();
-    updateImage(1);
 
     nextRoundBtn.addEventListener('click', function() {
         currentRound++;

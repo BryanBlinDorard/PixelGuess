@@ -1,11 +1,15 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.conf import settings
 from django.utils import timezone
 import requests
 import random
 import re
+import io
+from PIL import Image
+import base64
+from urllib.request import urlopen
 from .models import SteamGame, GameSession
 from django.db.models import Count, Sum, Avg, F, Case, When, IntegerField, FloatField, ExpressionWrapper, DurationField
 from django.db.models.functions import Round
@@ -15,6 +19,28 @@ from accounts.models import SteamProfile
 def normalize_text(text):
     # Garde uniquement les lettres et les chiffres, convertit en minuscules
     return re.sub(r'[^a-zA-Z0-9]', '', text.lower())
+
+def pixelate_image(image_url, pixel_size):
+    # Télécharger l'image depuis l'URL
+    response = urlopen(image_url)
+    img = Image.open(io.BytesIO(response.read()))
+    
+    # Calculer les nouvelles dimensions pour la pixelisation
+    width, height = img.size
+    small_width = width // pixel_size
+    small_height = height // pixel_size
+    
+    # Réduire l'image puis l'agrandir pour créer l'effet de pixelisation
+    # Utiliser BICUBIC pour une meilleure qualité lors de la réduction
+    img = img.resize((small_width, small_height), Image.Resampling.BICUBIC)
+    # Utiliser NEAREST pour conserver l'effet de pixels nets
+    img = img.resize((width, height), Image.Resampling.NEAREST)
+    
+    # Convertir l'image en base64 pour l'envoyer au navigateur
+    buffered = io.BytesIO()
+    img.save(buffered, format="JPEG", quality=95)
+    img_str = base64.b64encode(buffered.getvalue()).decode()
+    return f"data:image/jpeg;base64,{img_str}"
 
 @login_required
 def home(request):
@@ -312,3 +338,20 @@ def user_stats(request):
     }
     
     return render(request, 'game/user_stats.html', context)
+
+@login_required
+def get_pixelated_image(request):
+    if request.method == 'POST':
+        import json
+        data = json.loads(request.body)
+        image_url = data.get('image_url')
+        progress = float(data.get('progress', 0))
+        
+        # Inverser la logique : au début (progress = 1), les pixels sont très gros (50)
+        # À la fin (progress = 0), les pixels sont très petits (1)
+        pixel_size = max(1, int(50 * progress))
+        
+        pixelated_image = pixelate_image(image_url, pixel_size)
+        return JsonResponse({'image_data': pixelated_image})
+    
+    return JsonResponse({'error': 'Invalid request'}, status=400)
